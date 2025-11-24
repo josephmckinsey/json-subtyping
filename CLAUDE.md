@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 lake build              # Build the library and executable
+lake test               # Run tests
 lake exe json-subtyping # Run the executable
 ```
 
@@ -27,7 +28,7 @@ The goal is to represent JSON schemas as Lean types with:
 - Combinators: unions (`|`), intersections (`&`), arrays (`[]`), tuples, objects
 
 **Key algorithms to implement:**
-1. **Type checking** - Verify a JSON value conforms to a type
+1. **Type checking** - Verify a JSON value conforms to a type ✅
 2. **Subtype checking** - Decidable `τ₁ <: τ₂` relation for compile-time coercion
 3. **Normalization** - DNF conversion, object field merging, never elimination
 4. **Type narrowing** - TypeScript-style flow typing based on discriminants
@@ -43,7 +44,9 @@ The subtyping relation follows standard structural subtyping:
 
 ### Architecture
 
-- `JsonSubtyping/Basic.lean` - Core type definitions (currently placeholder)
+- `JsonSubtyping/Basic.lean` - Core type definitions and `JsonType.check`
 - `JsonSubtyping.lean` - Library root module
 - `Main.lean` - Executable entry point
+- `Tests/Check.lean` - Tests for `JsonType.check`
+- `Tests/Examples.lean` - Example type definitions
 - `blueprint/src/plan.typ` - Detailed design specification with typing rules
