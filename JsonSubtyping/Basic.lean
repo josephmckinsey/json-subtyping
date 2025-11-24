@@ -1,4 +1,4 @@
-import Lean.Data.Json
+import JsonSubtyping.JsonLemmas
 
 open Lean (Json)
 
@@ -44,11 +44,11 @@ def JsonType.check (t : JsonType) (v : Json) : Bool :=
   | .string => (v matches .str _)
   | .any => true
   | .never => false
-  | .strLit s => v == .str s
+  | .strLit s => v.beq (.str s)
   | .numLit n => match v with
     | .num x => x == Lean.JsonNumber.fromInt n
     | _ => false
-  | .boolLit b => v == .bool b
+  | .boolLit b => v.beq (.bool b)
   | .array elemType => match v with
     | .arr xs => xs.all elemType.check
     | _ => false
@@ -97,3 +97,38 @@ decreasing_by
 
 /-- A JSON value that conforms to a specific JsonType schema -/
 abbrev TypedJson (t : JsonType) := Subtype (t.check · = true)
+
+namespace TypedJson
+
+-- Basic constructors
+-- We could use native_decide for this. Ordinary decide does _not_ work becuase we use
+-- well-foundedness to prove things :(
+def null : TypedJson .null := ⟨Json.null, by simp [JsonType.check, Json.isNull]⟩
+def true : TypedJson .bool := ⟨.bool Bool.true, by simp [JsonType.check]⟩
+def false : TypedJson .bool := ⟨.bool Bool.false, by simp [JsonType.check]⟩
+
+-- Coercions from Lean types
+instance : Coe String (TypedJson .string) where
+  coe s := ⟨.str s, by simp [JsonType.check]⟩
+
+instance : Coe Int (TypedJson .number) where
+  coe n := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
+
+instance : Coe Nat (TypedJson .number) where
+  coe n := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
+
+instance : Coe Bool (TypedJson .bool) where
+  coe b := ⟨.bool b, by simp [JsonType.check]⟩
+
+-- Literal type constructors
+def strLit (s : String) : TypedJson (.strLit s) := ⟨.str s, by
+    simp [JsonType.check, Json.beq_refl]
+  ⟩
+def numLit (n : Int) : TypedJson (.numLit n) := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
+def boolLit (b : Bool) : TypedJson (.boolLit b) := ⟨.bool b, by simp [JsonType.check, Json.beq_refl]⟩
+
+-- Any type accepts anything
+instance : Coe Json (TypedJson .any) where
+  coe v := ⟨v, by simp [JsonType.check]⟩
+
+end TypedJson

@@ -44,9 +44,21 @@ The subtyping relation follows standard structural subtyping:
 
 ### Architecture
 
-- `JsonSubtyping/Basic.lean` - Core type definitions and `JsonType.check`
+- `JsonSubtyping/Basic.lean` - Core type definitions, `JsonType.check`, and `TypedJson`
+- `JsonSubtyping/JsonLemmas.lean` - Json infrastructure: `Json.beq`, sizeOf lemmas
 - `JsonSubtyping.lean` - Library root module
 - `Main.lean` - Executable entry point
 - `Tests/Check.lean` - Tests for `JsonType.check`
 - `Tests/Examples.lean` - Example type definitions
 - `blueprint/src/plan.typ` - Detailed design specification with typing rules
+
+### Current Status / TODOs
+
+**Blocking issue:** `Json` is a nested inductive (contains `Array Json` and `TreeMap.Raw String Json`), which makes induction difficult. The standard `induction` tactic doesn't work.
+
+**Next steps:**
+1. Define a usable induction principle for `Json` (wrapping `Json.rec` or using well-founded recursion on `sizeOf`)
+2. Prove `Json.beq_refl` using that principle
+3. Then can implement subtype checking (`τ₁ <: τ₂`)
+
+See `JsonSubtyping/JsonLemmas.lean` for detailed TODOs.

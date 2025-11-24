@@ -3,6 +3,10 @@ version = "0.1.0"
 defaultTargets = ["json-subtyping"]
 testDriver = "Tests"
 
+[leanOptions]
+# Set this to true to enable the experimental module system
+experimental.module = true
+
 [[lean_lib]]
 name = "Tests"
 globs = ["Tests.+"]
