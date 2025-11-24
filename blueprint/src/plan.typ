@@ -231,7 +231,8 @@ As in type checking, the judgements below show how the algorithm works. We will 
 *Trivial subtyping*
 $
   prooftree(rule(tau <: tau)) quad
-  prooftree(rule(tau <: anyType))
+  prooftree(rule(tau <: anyType)) quad
+  prooftree(rule(neverType <: tau))
 $
 
 *Arrays*
@@ -375,7 +376,7 @@ $
 
 *Never*
 
-Every #neverType in a union should be removed. A single #neverType in a object type should turn the object type into #neverType, similarly with tuples, arrays, and intersection.
+Every #neverType in a union should be removed. A single #neverType in a tuple, array, or intersection should turn the whole type into #neverType. A #neverType in the required params of an object type should turn to #neverType, while optionals should be removed.
 
 = Type "Inference"
 
@@ -440,14 +441,14 @@ $
   ) quad
   prooftree(
     rule(
-      "v.property = value",
-      v : tau
+      "v.f = value",
+      v : {f : "value"}
     )
   )
   prooftree(
     rule(
       "v = w", v : tau_1, w : tau_2,
-      v : {f : anyType}
+      v : tau_1 \& tau_2
     )
   )
   prooftree(

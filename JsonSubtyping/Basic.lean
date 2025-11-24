@@ -34,6 +34,7 @@ instance : AndOp JsonType where
 instance : OrOp JsonType where
   or := JsonType.union
 
+set_option linter.unusedVariables false in
 /-- Check if a JSON value conforms to a JsonType schema -/
 def JsonType.check (t : JsonType) (v : Json) : Bool :=
   match t with
@@ -54,21 +55,42 @@ def JsonType.check (t : JsonType) (v : Json) : Bool :=
   | .tuple elemTypes => match v with
     | .arr xs =>
       xs.size == elemTypes.length &&
-      (xs.toList.zip elemTypes).all fun (x, t) => t.check x
+      (xs.toList.zip elemTypes.attach).all fun (x, ⟨t, h⟩) => t.check x
     | _ => false
   | .union t1 t2 => t1.check v || t2.check v
   | .inter t1 t2 => t1.check v && t2.check v
   | .object required optional => match v with
     | .obj fields =>
       -- All required fields must be present and match their types
-      required.all fun (name, fieldType) =>
+      required.attach.all fun ⟨(name, fieldType), h⟩ =>
         match fields.get? name with
         | some fieldVal => fieldType.check fieldVal
         | none => false
       &&
       -- All optional fields that are present must match their types
-      optional.all fun (name, fieldType) =>
+      optional.attach.all fun ⟨(name, fieldType), h⟩ =>
         match fields.get? name with
         | some fieldVal => fieldType.check fieldVal
         | none => true
     | _ => false
+termination_by t
+decreasing_by
+  · simp only [array.sizeOf_spec, Nat.lt_add_left_iff_pos, Nat.lt_add_one]
+  · simp +arith only [tuple.sizeOf_spec, ge_iff_le]
+    suffices sizeOf t < sizeOf elemTypes by
+      grind
+    exact List.sizeOf_lt_of_mem h
+  · simp +arith
+  · simp +arith
+  · simp +arith
+  · simp +arith
+  · simp +arith only [object.sizeOf_spec, ge_iff_le]
+    have := List.sizeOf_lt_of_mem h
+    have : sizeOf fieldType < sizeOf (name, fieldType) := by
+      simp +arith
+    grind
+  · simp +arith only [object.sizeOf_spec, ge_iff_le]
+    have := List.sizeOf_lt_of_mem h
+    have : sizeOf fieldType < sizeOf (name, fieldType) := by
+      simp +arith
+    grind
