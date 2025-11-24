@@ -62,16 +62,16 @@ def JsonType.check (t : JsonType) (v : Json) : Bool :=
   | .object required optional => match v with
     | .obj fields =>
       -- All required fields must be present and match their types
-      required.attach.all fun ⟨(name, fieldType), h⟩ =>
+      (required.attach.all fun ⟨(name, fieldType), h⟩ =>
         match fields.get? name with
         | some fieldVal => fieldType.check fieldVal
-        | none => false
+        | none => false)
       &&
       -- All optional fields that are present must match their types
-      optional.attach.all fun ⟨(name, fieldType), h⟩ =>
+      (optional.attach.all fun ⟨(name, fieldType), h⟩ =>
         match fields.get? name with
         | some fieldVal => fieldType.check fieldVal
-        | none => true
+        | none => true)
     | _ => false
 termination_by t
 decreasing_by
