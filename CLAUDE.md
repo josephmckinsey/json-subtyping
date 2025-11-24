@@ -29,9 +29,10 @@ The goal is to represent JSON schemas as Lean types with:
 
 **Key algorithms to implement:**
 1. **Type checking** - Verify a JSON value conforms to a type ✅
-2. **Subtype checking** - Decidable `τ₁ <: τ₂` relation for compile-time coercion
-3. **Normalization** - DNF conversion, object field merging, never elimination
-4. **Type narrowing** - TypeScript-style flow typing based on discriminants
+2. **Subtype checking** - Decidable `τ₁ <: τ₂` relation for compile-time coercion ✅
+3. **Subtype soundness** - Prove that subtyping preserves checking (see below)
+4. **Normalization** - DNF conversion, object field merging, never elimination
+5. **Type narrowing** - TypeScript-style flow typing based on discriminants
 
 ### Subtyping Rules
 
@@ -45,20 +46,50 @@ The subtyping relation follows standard structural subtyping:
 ### Architecture
 
 - `JsonSubtyping/Basic.lean` - Core type definitions, `JsonType.check`, and `TypedJson`
+- `JsonSubtyping/Subtype.lean` - Subtype checking implementation
 - `JsonSubtyping/JsonLemmas.lean` - Json infrastructure: `Json.beq`, sizeOf lemmas
 - `JsonSubtyping.lean` - Library root module
 - `Main.lean` - Executable entry point
 - `Tests/Check.lean` - Tests for `JsonType.check`
+- `Tests/Subtype.lean` - Tests for subtype checking
+- `Tests/TypedJson.lean` - Tests for TypedJson constructors
 - `Tests/Examples.lean` - Example type definitions
 - `blueprint/src/plan.typ` - Detailed design specification with typing rules
 
 ### Current Status / TODOs
 
-**Blocking issue:** `Json` is a nested inductive (contains `Array Json` and `TreeMap.Raw String Json`), which makes induction difficult. The standard `induction` tactic doesn't work.
+**Completed:**
+- ✅ `JsonType.check` - Runtime type checking
+- ✅ `Json.beq_refl` - Reflexivity of JSON equality
+- ✅ `JsonType.subtype` - Decidable subtype checking with all rules from plan.typ
+- ✅ TypedJson constructors (null, literals, coercions)
+- ✅ Tests for type checking and subtyping
 
-**Next steps:**
-1. Define a usable induction principle for `Json` (wrapping `Json.rec` or using well-founded recursion on `sizeOf`)
-2. Prove `Json.beq_refl` using that principle
-3. Then can implement subtype checking (`τ₁ <: τ₂`)
+**Priority TODOs:**
 
-See `JsonSubtyping/JsonLemmas.lean` for detailed TODOs.
+1. **Subtype soundness theorem** (CRITICAL for coercion)
+   - Need to prove: `t1.check x = true → t1.subtype t2 = true → t2.check x = true`
+   - This is the fundamental property that justifies coercing `TypedJson t1` to `TypedJson t2`
+   - Without this theorem, we cannot safely implement coercion between subtypes
+   - Will likely require induction on both the structure of types and the subtype derivation
+
+2. **Coercion implementation**
+   - Once soundness is proven, implement: `coerce : TypedJson t1 → (h : t1.subtype t2 = true) → TypedJson t2`
+   - This will allow compile-time type narrowing and widening
+
+3. **Normalization** (COMPLEX - may involve mutual induction)
+   - Key lemma required: `(norm t).check x ↔ t.check x` (normalization preserves checking)
+   - DNF conversion for unions/intersections
+   - Object field sorting and merging for intersections
+   - Never elimination
+   - Termination may be challenging due to mutual recursion between normalization and subtyping
+   - Consider deferring until after soundness proof for non-normalized subtyping
+
+4. **Type inference helpers**
+   - Field access with type information
+   - Object construction helpers
+   - Type narrowing macros (TypeScript-style flow typing)
+
+**Known challenges:**
+- Normalization will likely require mutual induction with subtyping, making termination proofs complex
+- Soundness proof will be substantial and may reveal edge cases in our subtype checking algorithm
