@@ -285,29 +285,51 @@ $
 $
   prooftree(
     rule(
-      tau <: tau_1 \& tau_2,
-      tau <: tau_1
+      tau <: tau_1, tau <: tau_2,
+      tau <: tau_1 \& tau_2
     )
   ) quad
   prooftree(
     rule(
-      tau <: tau_1 \& tau_2,
-      tau <: tau_2
+      tau_1 <: tau,
+      tau_1 \& tau_2 <: tau
     )
   ) quad
+  prooftree(
+    rule(
+      tau_2 <: tau,
+      tau_1 \& tau_2 <: tau
+    )
+  )
+$
+
+*Literals*
+
+Literal types are subtypes of their base types:
+
+$
+  prooftree(rule(("string literal" s) <: stringType)) quad
+  prooftree(rule(("number literal" n) <: numberType)) quad
+  prooftree(rule(("bool literal" b) <: boolType))
 $
 
 *Objects*
 
+For objects with required and optional fields, we write $v_1 = {f_1 : tau_1, ..., f_n: tau_n, o_1? : sigma_1, ..., o_m? : sigma_m}$ where $f_i$ are required and $o_i$ are optional.
+For all required fields in $tau_2$, they are required in $tau_1$ with a subtype. For all optional fields, if they are in $tau_1$ too,
+then they must have a subtype.
+
 $
   prooftree(
     rule(
-      forall i\, exists j\, f_i = g_j and tau_i <: sigma_j,
-      {f_1 : tau_1, ..., f_n: tau_n} <:
-      {g_1 : sigma_1, ..., g_m: sigma_m}
+      forall f_i in tau_2 \, f_i in tau_1."required" and tau_1.f_i <: tau_2.f_i,
+      forall o_i? in tau_2\, o_i in tau_1 arrow tau_1.o_i <: tau_2.o_i,
+      tau_1 <: tau_2
     )
   )
 $
+
+This ensures width subtyping (extra fields allowed) and depth subtyping (covariant field types), while preventing incompatible types for shared fields.
 
 The subtyping is also similar to record subtyping as in #link("https://softwarefoundations.cis.upenn.edu/plf-current/Sub.html", [Software Foundations subtyping section]).
 
