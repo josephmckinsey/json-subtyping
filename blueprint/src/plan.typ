@@ -335,7 +335,15 @@ The subtyping is also similar to record subtyping as in #link("https://softwaref
 
 === Normalization
 
-We will also need various normalization procedures, which will only be applied once, that will make subtyping more powerful:
+We will also need various normalization procedures, which will only be applied once, that will make subtyping more powerful.
+
+*Key lemma:* Normalization must preserve the set of values that check against a type:
+
+$
+  ("norm" tau)."check"(v) arrow.l.r.double tau."check"(v)
+$
+
+This equivalence is critical for the soundness of using normalization as a preprocessor:
 
 $
   prooftree(
