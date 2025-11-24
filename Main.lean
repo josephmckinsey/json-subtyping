@@ -1,4 +1,4 @@
 import JsonSubtyping
 
 def main : IO Unit :=
-  IO.println s!"Hello, {hello}!"
+  IO.println s!"JsonType: {repr JsonType.null}"

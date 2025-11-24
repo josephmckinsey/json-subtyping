@@ -1,6 +1,11 @@
 name = "json-subtyping"
 version = "0.1.0"
 defaultTargets = ["json-subtyping"]
+testDriver = "Tests"
+
+[[lean_lib]]
+name = "Tests"
+globs = ["Tests.+"]
 
 [[lean_lib]]
 name = "JsonSubtyping"
