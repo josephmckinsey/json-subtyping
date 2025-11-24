@@ -94,3 +94,6 @@ decreasing_by
     have : sizeOf fieldType < sizeOf (name, fieldType) := by
       simp +arith
     grind
+
+/-- A JSON value that conforms to a specific JsonType schema -/
+abbrev TypedJson (t : JsonType) := Subtype (t.check · = true)
