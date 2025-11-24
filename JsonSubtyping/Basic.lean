@@ -104,8 +104,6 @@ namespace TypedJson
 -- We could use native_decide for this. Ordinary decide does _not_ work becuase we use
 -- well-foundedness to prove things :(
 def null : TypedJson .null := ⟨Json.null, by simp [JsonType.check, Json.isNull]⟩
-def true : TypedJson .bool := ⟨.bool Bool.true, by simp [JsonType.check]⟩
-def false : TypedJson .bool := ⟨.bool Bool.false, by simp [JsonType.check]⟩
 
 -- Coercions from Lean types
 instance : Coe String (TypedJson .string) where
@@ -116,6 +114,9 @@ instance : Coe Int (TypedJson .number) where
 
 instance : Coe Nat (TypedJson .number) where
   coe n := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
+
+instance : OfNat (TypedJson .number) n where
+  ofNat := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
 
 instance : Coe Bool (TypedJson .bool) where
   coe b := ⟨.bool b, by simp [JsonType.check]⟩
