@@ -1,20 +1,6 @@
 /-
   Lemmas and infrastructure for working with Lean.Json
 
-  ## TODO for next session:
-
-  The main challenge is that `Json` is a nested inductive type (contains `Array Json`
-  and `TreeMap.Raw String Json`), which means:
-
-  1. The standard `induction` tactic doesn't work
-  2. We need custom induction principles using well-founded recursion on `sizeOf`
-  3. Or we need to use `Json.rec` manually with the right motive
-
-  Key tasks:
-  - [ ] Define a usable induction principle for Json (maybe wrapping Json.rec)
-  - [ ] Prove `Json.beq_refl : ∀ x, Json.beq x x = true` using that principle
-  - [ ] Consider proving `LawfulBEq` for our custom `Json.beq`
-
   References:
   - `Json.rec` exists but is awkward to use directly
   - See Lean 4 docs on nested inductives: https://lean-lang.org/doc/reference/latest/The-Type-System/Inductive-Types/
@@ -48,11 +34,6 @@ theorem TreeMap.Raw.sizeOf_lt_of_mem {α β : Type} {cmp : α → α → Orderin
   have h3 := Impl.sizeOf_lt_of_mem h
   omega
 
-theorem TreeMap.Raw.inne_toListModel_eq_toList {α : Type} {β : α → Type} {cmp : α → α → Ordering}
-    {t : Std.DTreeMap.Raw α β cmp} :
-    t.inner.toListModel = t.inner.toList := by
-    exact Eq.symm Std.DTreeMap.Internal.Impl.toList_eq_toListModel
-
 set_option linter.unusedVariables false in
 /-- Custom BEq for Json that we can prove properties about.
 
@@ -66,22 +47,70 @@ def Lean.Json.beq : Json → Json → Bool
   | .bool a, .bool b => a == b
   | .num a, .num b => a == b
   | .str a, .str b => a == b
-  | .arr a, .arr b => a.size == b.size && (a.attach.zip b).all fun (⟨x, _⟩, y) => Lean.Json.beq x y
+  | .arr a, .arr b => a.size == b.size && (a.attach.zip b.attach).all fun (⟨x, h1⟩, ⟨y, h2⟩) => Lean.Json.beq x y
   | .obj a, .obj b =>
-    let szA := a.size
-    let szB := b.size
-    szA == szB && a.inner.inner.toList.attach.all fun ⟨⟨field, fa⟩, h⟩ =>
-      match b.get? field with
-      | none => false
-      | some fb => Lean.Json.beq fa fb
+    let aList := a.inner.inner.toList
+    let bList := b.inner.inner.toList
+    aList.length == bList.length &&
+      (aList.attach.zip bList.attach).all fun (⟨⟨fa, va⟩, h1⟩, ⟨⟨fb, vb⟩, h2⟩) =>
+      fa == fb && Lean.Json.beq va vb
   | _, _ => false
 termination_by x => x
 decreasing_by
   · decreasing_tactic
-  · rw [Std.DTreeMap.Internal.Impl.toList_eq_toListModel] at h
-    have := TreeMap.Raw.sizeOf_lt_of_mem h
+  · have : aList = a.inner.inner.toList := rfl
+    rw [this, Std.DTreeMap.Internal.Impl.toList_eq_toListModel] at h1
+    have := TreeMap.Raw.sizeOf_lt_of_mem h1
     simp +arith
     omega
+
+set_option linter.unusedVariables false in
+/-- Custom recursor principle for Json based on well-founded recursion on sizeOf.
+
+    This handles arrays and objects by giving us the induction hypothesis for their elements. -/
+def Json.recOn {motive : Json → Sort u}
+    (x : Json)
+    (null : motive .null)
+    (bool : ∀ b, motive (.bool b))
+    (num : ∀ n, motive (.num n))
+    (str : ∀ s, motive (.str s))
+    (arr : ∀ (a : Array Json), (∀ j, j ∈ a → motive j) → motive (.arr a))
+    (obj : ∀ (o : Std.TreeMap.Raw String Json compare),
+           (∀ field value, ⟨field, value⟩ ∈ o.inner.inner.toList → motive value) →
+           motive (.obj o)) :
+    motive x :=
+  match x with
+  | .null => null
+  | .bool b => bool b
+  | .num n => num n
+  | .str s => str s
+  | .arr a => arr a (fun j jMem => Json.recOn j null bool num str arr obj)
+  | .obj o => obj o (fun k v vMem => Json.recOn v null bool num str arr obj)
+termination_by x
+decreasing_by
+  · suffices sizeOf j < sizeOf a by simp +arith; omega
+    exact Array.sizeOf_lt_of_mem jMem
+  suffices sizeOf v < sizeOf o by simp +arith; omega
+  apply TreeMap.Raw.sizeOf_lt_of_mem
+  rw [<-Std.DTreeMap.Internal.Impl.toList_eq_toListModel]
+  exact vMem
+
+set_option linter.unusedVariables false in
+/-- Custom induction principle for Json based on well-founded recursion on sizeOf.
+
+    This handles arrays and objects by giving us the induction hypothesis for their elements. -/
+theorem Json.inductionOn {motive : Json → Prop}
+    (x : Json)
+    (null : motive .null)
+    (bool : ∀ b, motive (.bool b))
+    (num : ∀ n, motive (.num n))
+    (str : ∀ s, motive (.str s))
+    (arr : ∀ (a : Array Json), (∀ j, j ∈ a → motive j) → motive (.arr a))
+    (obj : ∀ (o : Std.TreeMap.Raw String Json compare),
+           (∀ field value, ⟨field, value⟩ ∈ o.inner.inner.toList → motive value) →
+           motive (.obj o)) :
+    motive x := Json.recOn x null bool num str arr obj
+
 
 /-- TODO: Prove this using a custom induction principle for Json.
 
@@ -93,9 +122,40 @@ decreasing_by
 
     Once we have this, we can prove things like `LawfulBEq` for `Json.beq`. -/
 theorem Json.beq_refl (x : Json) : Json.beq x x = true := by
-  sorry
+  induction x using Json.inductionOn with
+  | null => simp [Json.beq]
+  | bool b => simp [Json.beq]
+  | num n => simp [Json.beq]
+  | str s => simp [Json.beq]
+  | arr x ih =>
+    unfold Json.beq
+    simp only [BEq.rfl, Bool.true_and]
+    apply Array.all_eq_true'.mpr
+    intro ⟨⟨a1, h1⟩, ⟨a2, h2⟩⟩ aMem
+    have a1_eq_a2 : a1 = a2 := by
+      simp [Array.zip_eq_zipWith] at aMem
+      exact aMem
+    simpa [<-a1_eq_a2] using ih a1 h1
+  | obj x ih =>
+    unfold Json.beq
+    extract_lets aList
+    simp only [BEq.rfl, Bool.true_and, List.all_eq_true, Bool.and_eq_true]
+    intro ⟨f1, f2⟩ mem
+    have : f1 = f2 := by
+      simp [List.zip_eq_zipWith] at mem
+      exact mem
+    rw [<-this]
+    let ⟨⟨k, v⟩ , h⟩ := f1
+    simpa using ih k v h
 
--- TODO: Once beq_refl is proven, we can add:
--- instance : LawfulBEq Json where
---   eq_of_beq := ...
---   rfl := Json.beq_refl
+instance alternateBEqJson : BEq Json where
+  beq := Lean.Json.beq
+
+/-
+A LawfulBEq instance cannot be instantiated unfortunately, since
+Std.TreeMap.Raw only gives equivalence. We'd have to make it equivalent.
+
+instance : LawfulBEq Json where
+  rfl := Json.beq_refl _
+  eq_of_beq := sorry
+-/
