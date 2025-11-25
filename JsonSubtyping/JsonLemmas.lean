@@ -7,6 +7,7 @@
 -/
 
 import Lean.Data.Json
+import JsonSubtyping.ListAttach
 
 open Lean (Json)
 
@@ -47,17 +48,17 @@ def Lean.Json.beq : Json → Json → Bool
   | .bool a, .bool b => a == b
   | .num a, .num b => a == b
   | .str a, .str b => a == b
-  | .arr a, .arr b => a.size == b.size && (a.attach.zip b.attach).all fun (⟨x, h1⟩, ⟨y, h2⟩) => Lean.Json.beq x y
+  | .arr a, .arr b => a.toList.beq' b.toList fun x h1 y h2 => Lean.Json.beq x y
   | .obj a, .obj b =>
     let aList := a.inner.inner.toList
     let bList := b.inner.inner.toList
-    aList.length == bList.length &&
-      (aList.attach.zip bList.attach).all fun (⟨⟨fa, va⟩, h1⟩, ⟨⟨fb, vb⟩, h2⟩) =>
-      fa == fb && Lean.Json.beq va vb
+    aList.beq' bList (fun ⟨fa, va⟩ h1 ⟨fb, vb⟩ h2 => fa == fb && Lean.Json.beq va vb)
   | _, _ => false
 termination_by x => x
 decreasing_by
-  · decreasing_tactic
+  · have : x ∈ a := Array.mem_def.mpr h1
+    suffices sizeOf x < sizeOf a by simp; omega
+    exact Array.sizeOf_lt_of_mem this
   · have : aList = a.inner.inner.toList := rfl
     rw [this, Std.DTreeMap.Internal.Impl.toList_eq_toListModel] at h1
     have := TreeMap.Raw.sizeOf_lt_of_mem h1
@@ -129,24 +130,17 @@ theorem Json.beq_refl (x : Json) : Json.beq x x = true := by
   | str s => simp [Json.beq]
   | arr x ih =>
     unfold Json.beq
-    simp only [BEq.rfl, Bool.true_and]
-    apply Array.all_eq_true'.mpr
-    intro ⟨⟨a1, h1⟩, ⟨a2, h2⟩⟩ aMem
-    have a1_eq_a2 : a1 = a2 := by
-      simp [Array.zip_eq_zipWith] at aMem
-      exact aMem
-    simpa [<-a1_eq_a2] using ih a1 h1
+    apply List.beq'_refl
+    intro j h
+    have : j ∈ x := Array.mem_def.mpr h
+    exact ih j this
   | obj x ih =>
     unfold Json.beq
     extract_lets aList
-    simp only [BEq.rfl, Bool.true_and, List.all_eq_true, Bool.and_eq_true]
-    intro ⟨f1, f2⟩ mem
-    have : f1 = f2 := by
-      simp [List.zip_eq_zipWith] at mem
-      exact mem
-    rw [<-this]
-    let ⟨⟨k, v⟩ , h⟩ := f1
-    simpa using ih k v h
+    apply List.beq'_refl
+    intro ⟨k, v⟩ ha
+    simp only [BEq.rfl, Bool.true_and]
+    apply ih k v ha
 
 instance alternateBEqJson : BEq Json where
   beq := Lean.Json.beq
@@ -159,21 +153,3 @@ instance : LawfulBEq Json where
   rfl := Json.beq_refl _
   eq_of_beq := sorry
 -/
-
-/-! ## List.beq equivalence lemmas
-
-These lemmas connect `List.beq` with the `attach`/`zip`/`all` pattern used in JsonType.beq.
-This allows us to leverage List's lawful BEq infrastructure while maintaining clean termination proofs.
--/
-
-/-- Equivalence between List.beq and the attach/zip/all pattern -/
-theorem List.beq_eq_attach_zip_all {α : Type _} (f : α → α → Bool) (xs ys : List α) :
-    @List.beq α ⟨f⟩ xs ys = true ↔
-    (xs.attach.zip ys).all (fun (⟨x, _⟩, y) => f x y) = true ∧ xs.length = ys.length := by
-  constructor
-  · -- Forward: List.beq implies attach/zip/all
-    intro h_beq
-    sorry
-  · -- Backward: attach/zip/all implies List.beq
-    intro ⟨h_all, h_len⟩
-    sorry
