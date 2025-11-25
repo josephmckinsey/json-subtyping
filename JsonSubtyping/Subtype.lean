@@ -2,8 +2,10 @@ import JsonSubtyping.Basic
 
 namespace JsonType
 
+
 /-- Check if t1 is a subtype of t2 (t1 <: t2) -/
 def subtype (t1 t2 : JsonType) : Bool :=
+  let α := { x : Bool // x → ∀x, t1.check x → t2.check x }
   match t1, t2 with
   -- Trivial cases
   | _, .any => true

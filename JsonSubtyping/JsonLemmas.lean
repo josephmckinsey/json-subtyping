@@ -159,3 +159,21 @@ instance : LawfulBEq Json where
   rfl := Json.beq_refl _
   eq_of_beq := sorry
 -/
+
+/-! ## List.beq equivalence lemmas
+
+These lemmas connect `List.beq` with the `attach`/`zip`/`all` pattern used in JsonType.beq.
+This allows us to leverage List's lawful BEq infrastructure while maintaining clean termination proofs.
+-/
+
+/-- Equivalence between List.beq and the attach/zip/all pattern -/
+theorem List.beq_eq_attach_zip_all {α : Type _} (f : α → α → Bool) (xs ys : List α) :
+    @List.beq α ⟨f⟩ xs ys = true ↔
+    (xs.attach.zip ys).all (fun (⟨x, _⟩, y) => f x y) = true ∧ xs.length = ys.length := by
+  constructor
+  · -- Forward: List.beq implies attach/zip/all
+    intro h_beq
+    sorry
+  · -- Backward: attach/zip/all implies List.beq
+    intro ⟨h_all, h_len⟩
+    sorry
