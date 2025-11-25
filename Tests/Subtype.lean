@@ -109,8 +109,8 @@ def objectTests : List (JsonType × JsonType × Bool) := [
    object [("id", number)] [("name", string)],
    true),
 
-  -- Optional fields can be missing
-  (object [("id", number)] [],
+  -- Optional fields can be missing when they exist in subtype
+  (object [("id", number)] [("name", string)],
    object [("id", number)] [("name", string)],
    true),
 
@@ -126,7 +126,22 @@ def objectTests : List (JsonType × JsonType × Bool) := [
 
   -- Empty objects
   (object [] [], object [] [], true),
-  (object [("x", number)] [], object [] [], true)
+  (object [("x", number)] [], object [] [], true),
+
+  -- An empty object type accepts {x: 42}, but {x?: string} does not
+  (object [] [],
+   object [] [("x", string)],
+   false),  -- Should be false, but current implementation returns true!
+
+  -- Related: object with unconstrained field should not be subtype of object with constrained optional field
+  (object [("y", number)] [],
+   object [] [("x", string)],
+   false),
+
+  -- But this should work: optional field exists in both
+  (object [] [("x", string)],
+   object [] [("x", any)],
+   true)
 ]
 
 #guard runTests objectTests

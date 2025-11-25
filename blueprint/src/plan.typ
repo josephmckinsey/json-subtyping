@@ -316,20 +316,22 @@ $
 *Objects*
 
 For objects with required and optional fields, we write $v_1 = {f_1 : tau_1, ..., f_n: tau_n, o_1? : sigma_1, ..., o_m? : sigma_m}$ where $f_i$ are required and $o_i$ are optional.
-For all required fields in $tau_2$, they are required in $tau_1$ with a subtype. For all optional fields, if they are in $tau_1$ too,
-then they must have a subtype.
+
+For all required fields in $tau_2$, they must be required in $tau_1$ with a subtype. For all optional fields in $tau_2$, they must exist (either as required or optional) in $tau_1$ with a subtype.
 
 $
   prooftree(
     rule(
-      forall f_i in tau_2 \, f_i in tau_1."required" and tau_1.f_i <: tau_2.f_i,
-      forall o_i? in tau_2\, o_i in tau_1 arrow tau_1.o_i <: tau_2.o_i,
+      forall f_i in tau_2."required" \, f_i in tau_1."required" and tau_1.f_i <: tau_2.f_i,
+      forall o_i in tau_2."optional"\, o_i in (tau_1."required" union tau_1."optional") and tau_1.o_i <: tau_2.o_i,
       tau_1 <: tau_2
     )
   )
 $
 
-This ensures width subtyping (extra fields allowed) and depth subtyping (covariant field types), while preventing incompatible types for shared fields.
+This ensures width subtyping (extra fields allowed in $tau_1$) and depth subtyping (covariant field types), while preventing incompatible types for shared fields.
+
+*Soundness note*: The second condition is critical for soundness with open objects. Without it, ${} <: {x? : "string"}$ would hold, but an object satisfying ${}$ could have ${x: 42}$ which violates ${x? : "string"}$.
 
 The subtyping is also similar to record subtyping as in #link("https://softwarefoundations.cis.upenn.edu/plf-current/Sub.html", [Software Foundations subtyping section]).
 

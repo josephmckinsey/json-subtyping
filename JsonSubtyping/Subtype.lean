@@ -38,18 +38,19 @@ def subtype (t1 t2 : JsonType) : Bool :=
         | .boolLit _, .bool => true
 
         -- Objects: width and depth subtyping
-        -- All required fields in τ₂ must exist in τ₁ with subtype
-        -- All optional fields in τ₂: if they exist in τ₁, they must have subtype
+        -- All fields in τ₂ (both required and optional) must exist in τ₁ with subtype
+        -- Required fields in τ₂ must come from req1
+        -- Optional fields in τ₂ can come from either req1 or opt1
         | .object req1 opt1, .object req2 opt2 =>
             let allFields1 := (req1 ++ opt1).attach
-            -- Check all required fields in req2 exist in req1 with subtype
+            -- All required fields in req2 must exist in req1 (required) with subtype
             let reqCheck := req2.attach.all fun ⟨(name2, type2), _h1⟩ =>
               req1.attach.any fun ⟨(name1, type1), _h2⟩ =>
                 name1 == name2 && subtype type1 type2
-            -- Check all optional fields in opt2: if they exist in τ₁, they must subtype
+            -- All optional fields in opt2 must exist in allFields1 with subtype
             let optCheck := opt2.attach.all fun ⟨(name2, type2), _h1⟩ =>
-              allFields1.all fun ⟨(name1, type1), _h2⟩ =>
-                name1 != name2 || subtype type1 type2
+              allFields1.any fun ⟨(name1, type1), _h2⟩ =>
+                name1 == name2 && subtype type1 type2
             reqCheck && optCheck
 
         | _, _ => false
