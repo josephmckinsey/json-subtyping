@@ -28,7 +28,6 @@ inductive DecideSubtype (t1 t2 : JsonType) where
 
 /-! ## Main Soundness Theorem -/
 
-
 namespace JsonType
 
 theorem any_check_eq_true {x : Json} : any.check x = true := by simp [JsonType.check]
@@ -145,6 +144,10 @@ def tupleSubtype (elems : List (JsonType × JsonType)) (h : ∀t ∈ elems, Deci
     )
     | _, _ => .none
 
+@[simp, grind =]
+theorem unionCheck (t1 t2 : JsonType) (x : Json) :
+    ((JsonType.union t1 t2).check x) = (t1.check x || t2.check x) := by
+  rw [check]
 
 /-- Check if t1 is a subtype of t2 (t1 <: t2) -/
 def subtype (t1 t2 : JsonType) : DecideSubtype t1 t2 :=
@@ -172,10 +175,13 @@ def subtype (t1 t2 : JsonType) : DecideSubtype t1 t2 :=
         -- Tuples to arrays: [τ₁,...,τₙ] <: τ[] if all τᵢ <: τ
         | .tuple elems, .array elemType =>
             tupleToArraySubtype elems elemType (fun t _h => subtype t elemType)
-        /-
         -- Unions: τ <: τ₁ | τ₂ if τ <: τ₁ or τ <: τ₂
-        | t, .union t1 t2 => subtype t t1 || subtype t t2
-
+        | t, .union t1 t2 =>
+          match subtype t t1, subtype t t2 with
+          | .isSubtype h1, _ => .isSubtype (by grind)
+          | _, .isSubtype h2 => .isSubtype (by grind)
+          | .none, .none => .none
+        /-
         -- Intersections: τ₁ & τ₂ <: τ if τ₁ <: τ or τ₂ <: τ
         | .inter t1 t2, t => subtype t1 t || subtype t2 t
 
@@ -215,6 +221,8 @@ decreasing_by
     simp; omega
   · have := List.sizeOf_lt_of_mem _h
     simp; omega
+  · decreasing_trivial
+  · decreasing_trivial
   /-
   · decreasing_trivial
   · have : sizeOf req1 + sizeOf opt1 < sizeOf (object req1 opt1) := by simp
