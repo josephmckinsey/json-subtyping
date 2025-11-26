@@ -149,6 +149,11 @@ theorem unionCheck (t1 t2 : JsonType) (x : Json) :
     ((JsonType.union t1 t2).check x) = (t1.check x || t2.check x) := by
   rw [check]
 
+@[simp, grind =]
+theorem interCheck (t1 t2 : JsonType) (x : Json) :
+    ((JsonType.inter t1 t2).check x) = (t1.check x && t2.check x) := by
+  rw [check]
+
 /-- Check if t1 is a subtype of t2 (t1 <: t2) -/
 def subtype (t1 t2 : JsonType) : DecideSubtype t1 t2 :=
   match t1, t2 with
@@ -181,12 +186,23 @@ def subtype (t1 t2 : JsonType) : DecideSubtype t1 t2 :=
           | .isSubtype h1, _ => .isSubtype (by grind)
           | _, .isSubtype h2 => .isSubtype (by grind)
           | .none, .none => .none
-        /-
-        -- Intersections: τ₁ & τ₂ <: τ if τ₁ <: τ or τ₂ <: τ
-        | .inter t1 t2, t => subtype t1 t || subtype t2 t
-
+        -- Unions: τ₁ | τ₂ <: τ if τ₁ <: τ or τ₂ <: τ
+        | .union t1 t2, t =>
+          match subtype t1 t, subtype t2 t with
+          | .isSubtype h1, .isSubtype h2 => .isSubtype (by grind)
+          | _, _ => .none
         -- Intersections: τ <: τ₁ & τ₂ if τ <: τ₁ and τ <: τ₂
-        | t, .inter t1 t2 => subtype t t1 && subtype t t2
+        | t, .inter t1 t2 =>
+          match subtype t t1, subtype t t2 with
+          | .isSubtype h1, .isSubtype h2 => .isSubtype (by grind)
+          | _, _ => .none
+        -- Intersections: τ₁ & τ₂ <: τ if τ₁ <: τ or τ₂ <: τ
+        | .inter t1 t2, t =>
+          match subtype t1 t, subtype t2 t with
+          | .isSubtype h1, _ => .isSubtype (by grind)
+          | _, .isSubtype h2 => .isSubtype (by grind)
+          | .none, .none => .none
+        /-
 
         -- Literals are subtypes of their base types
         | .strLit _, .string => true
@@ -221,6 +237,12 @@ decreasing_by
     simp; omega
   · have := List.sizeOf_lt_of_mem _h
     simp; omega
+  · decreasing_trivial
+  · decreasing_trivial
+  · decreasing_trivial
+  · decreasing_trivial
+  · decreasing_trivial
+  · decreasing_trivial
   · decreasing_trivial
   · decreasing_trivial
   /-
