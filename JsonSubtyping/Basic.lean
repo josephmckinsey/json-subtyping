@@ -224,6 +224,18 @@ instance : AndOp JsonType where
 instance : OrOp JsonType where
   or := JsonType.union
 
+/-- Recursive helper for tuple checking. Takes a checker function with membership proof.
+    The checker needs the membership proof for termination checking. -/
+def tupleCheckRec (types : List JsonType)
+    (checker : (t : JsonType) → t ∈ types → Json → Bool) : List Json → Bool
+  | [] => types.isEmpty
+  | v::vs =>
+      match types with
+      | [] => false
+      | t::ts =>
+          checker t List.mem_cons_self v &&
+          tupleCheckRec ts (fun t' h => checker t' (List.mem_cons_of_mem t h)) vs
+
 set_option linter.unusedVariables false in
 /-- Check if a JSON value conforms to a JsonType schema -/
 def JsonType.check (t : JsonType) (v : Json) : Bool :=
@@ -243,9 +255,7 @@ def JsonType.check (t : JsonType) (v : Json) : Bool :=
     | .arr xs => xs.all elemType.check
     | _ => false
   | .tuple elemTypes => match v with
-    | .arr xs =>
-      xs.size == elemTypes.length &&
-      (xs.toList.zip elemTypes.attach).all fun (x, ⟨t, h⟩) => t.check x
+    | .arr xs => tupleCheckRec elemTypes (fun t _h => t.check) xs.toList
     | _ => false
   | .union t1 t2 => t1.check v || t2.check v
   | .inter t1 t2 => t1.check v && t2.check v
@@ -269,7 +279,7 @@ decreasing_by
   · simp +arith only [tuple.sizeOf_spec, ge_iff_le]
     suffices sizeOf t < sizeOf elemTypes by
       grind
-    exact List.sizeOf_lt_of_mem h
+    exact List.sizeOf_lt_of_mem _h
   · simp +arith
   · simp +arith
   · simp +arith
