@@ -3,19 +3,22 @@ import JsonSubtyping.Basic
 open Lean (Json)
 
 /-- If Json.beq returns true for a value and a string constructor, the value must be a string -/
+@[grind →]
 theorem Json.beq_str_constructor (x : Json) (s : String) :
     Json.beq x (.str s) = true → ∃ s', x = .str s' := by
-  sorry
+  cases x <;> simp [Json.beq]
 
 /-- If Json.beq returns true for a value and a number constructor, the value must be a number -/
+@[grind →]
 theorem Json.beq_num_constructor (x : Json) (n : Lean.JsonNumber) :
     Json.beq x (.num n) = true → ∃ n', x = .num n' := by
-  sorry
+  cases x <;> simp [Json.beq]
 
 /-- If Json.beq returns true for a value and a bool constructor, the value must be a bool -/
+@[grind →]
 theorem Json.beq_bool_constructor (x : Json) (b : Bool) :
     Json.beq x (.bool b) = true → ∃ b', x = .bool b' := by
-  sorry
+  cases x <;> simp [Json.beq]
 
 /-- If two JsonTypes are equal via BEq, their check functions agree -/
 theorem beq_check_eq {t1 t2 : JsonType} (x : Json) :
@@ -202,13 +205,12 @@ def subtype (t1 t2 : JsonType) : DecideSubtype t1 t2 :=
           | .isSubtype h1, _ => .isSubtype (by grind)
           | _, .isSubtype h2 => .isSubtype (by grind)
           | .none, .none => .none
-        /-
-
         -- Literals are subtypes of their base types
-        | .strLit _, .string => true
-        | .numLit _, .number => true
-        | .boolLit _, .bool => true
+        | .strLit _, .string => .isSubtype (by unfold check; grind)
+        | .numLit _, .number => .isSubtype (by unfold check; grind)
+        | .boolLit _, .bool => .isSubtype (by unfold check; grind)
 
+        /-
         -- Objects: width and depth subtyping
         -- All fields in τ₂ (both required and optional) must exist in τ₁ with subtype
         -- Required fields in τ₂ must come from req1

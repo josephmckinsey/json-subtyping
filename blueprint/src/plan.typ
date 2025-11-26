@@ -277,6 +277,12 @@ $
       tau <: tau_2,
       tau <: tau_1 | tau_2
     )
+  ) quad
+  prooftree(
+    rule(
+      tau_1 <: tau, tau_2 <: tau,
+      tau_1 | tau_2 <: tau
+    )
   )
 $
 
