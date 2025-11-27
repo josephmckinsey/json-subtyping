@@ -236,6 +236,36 @@ def tupleCheckRec (types : List JsonType)
           checker t List.mem_cons_self v &&
           tupleCheckRec ts (fun t' h => checker t' (List.mem_cons_of_mem t h)) vs
 
+/-- Helper: Check a single required field by name -/
+def checkRequiredField (k : String) (checker : Json → Bool)
+    (jsonFields : Std.TreeMap.Raw String Json compare) : Bool :=
+  match jsonFields.get? k with
+  | some val => checker val
+  | none => false
+
+/-- Helper: Check a single optional field by name -/
+def checkOptionalField (k : String) (checker : Json → Bool)
+    (jsonFields : Std.TreeMap.Raw String Json compare) : Bool :=
+  match jsonFields.get? k with
+  | some val => checker val
+  | none => true
+
+/-- Check all required fields in a field list using checkRequiredField helper.
+    The checker takes a field with its membership proof (for termination). -/
+def requiredFieldsCheck (fields : List (String × JsonType))
+    (checker : (p : String × JsonType) → p ∈ fields → Json → Bool)
+    (jsonFields : Std.TreeMap.Raw String Json compare) : Bool :=
+  fields.attach.all fun ⟨(name, ftype), h⟩ =>
+    checkRequiredField name (checker (name, ftype) h) jsonFields
+
+/-- Check all optional fields in a field list using checkOptionalField helper.
+    The checker takes a field with its membership proof (for termination). -/
+def optionalFieldsCheck (fields : List (String × JsonType))
+    (checker : (p : String × JsonType) → p ∈ fields → Json → Bool)
+    (jsonFields : Std.TreeMap.Raw String Json compare) : Bool :=
+  fields.attach.all fun ⟨(name, ftype), h⟩ =>
+    checkOptionalField name (checker (name, ftype) h) jsonFields
+
 set_option linter.unusedVariables false in
 /-- Check if a JSON value conforms to a JsonType schema -/
 def JsonType.check (t : JsonType) (v : Json) : Bool :=
@@ -261,17 +291,8 @@ def JsonType.check (t : JsonType) (v : Json) : Bool :=
   | .inter t1 t2 => t1.check v && t2.check v
   | .object required optional => match v with
     | .obj fields =>
-      -- All required fields must be present and match their types
-      (required.attach.all fun ⟨(name, fieldType), h⟩ =>
-        match fields.get? name with
-        | some fieldVal => fieldType.check fieldVal
-        | none => false)
-      &&
-      -- All optional fields that are present must match their types
-      (optional.attach.all fun ⟨(name, fieldType), h⟩ =>
-        match fields.get? name with
-        | some fieldVal => fieldType.check fieldVal
-        | none => true)
+      requiredFieldsCheck required (fun p _h => p.2.check) fields &&
+      optionalFieldsCheck optional (fun p _h => p.2.check) fields
     | _ => false
 termination_by t
 decreasing_by
@@ -285,14 +306,14 @@ decreasing_by
   · simp +arith
   · simp +arith
   · simp +arith only [object.sizeOf_spec, ge_iff_le]
-    have := List.sizeOf_lt_of_mem h
-    have : sizeOf fieldType < sizeOf (name, fieldType) := by
-      simp +arith
+    have := List.sizeOf_lt_of_mem _h
+    have : sizeOf p.snd < sizeOf p := by
+      rcases p <;> simp +arith
     grind
   · simp +arith only [object.sizeOf_spec, ge_iff_le]
-    have := List.sizeOf_lt_of_mem h
-    have : sizeOf fieldType < sizeOf (name, fieldType) := by
-      simp +arith
+    have := List.sizeOf_lt_of_mem _h
+    have : sizeOf p.snd < sizeOf p := by
+      rcases p <;> simp +arith
     grind
 
 /-- A JSON value that conforms to a specific JsonType schema -/

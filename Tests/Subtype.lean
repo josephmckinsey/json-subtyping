@@ -4,7 +4,18 @@ open JsonType
 
 -- Test runner
 def runTests (tests : List (JsonType × JsonType × Bool)) : Bool :=
-  tests.all fun (t1, t2, expected) => (t1.subtype t2) == expected
+  tests.all fun (t1, t2, expected) =>
+    match (t1.subtype t2) with
+    | .isSubtype _ => expected
+    | .none => !expected
+
+def filterOutTests (tests : List (JsonType × JsonType × Bool)) :
+    List (JsonType × JsonType × Bool) :=
+  tests.filter fun (t1, t2, expected) =>
+    !match (t1.subtype t2) with
+    | .isSubtype _ => expected
+    | .none => !expected
+
 
 -- Trivial subtyping tests
 def trivialTests : List (JsonType × JsonType × Bool) := [

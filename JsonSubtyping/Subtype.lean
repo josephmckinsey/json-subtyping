@@ -1,4 +1,6 @@
 import JsonSubtyping.Basic
+import JsonSubtyping.ObjectSubtype
+--import JsonSubtyping.ObjectSubtype
 
 open Lean (Json)
 
@@ -157,6 +159,47 @@ theorem interCheck (t1 t2 : JsonType) (x : Json) :
     ((JsonType.inter t1 t2).check x) = (t1.check x && t2.check x) := by
   rw [check]
 
+def checkFieldsSubtype (source target : List (String × JsonType))
+    (checker :
+      (k : String) → (t1 t2 : JsonType) → (k, t1) ∈ source → (k, t2) ∈ target →
+      DecideSubtype t1 t2
+    ) : Option (PLift (FieldsWeakerThan source target)) :=
+  match targetEq : target with
+  | [] => .some <| .up (by simp [FieldsWeakerThan])
+  | (k, t2)::rest => match h : source.lookup k with
+    | some t1 =>
+      have targetIn : (k, t2) ∈ target := by grind
+      have sourceIn : (k, t1) ∈ source := by
+        rw [List.lookup_eq_some_iff] at h; grind
+      match checker k t1 t2 sourceIn (targetEq ▸ targetIn) with
+      | .isSubtype _h =>
+        match checkFieldsSubtype source rest (fun k' t1' t2' h1' h2' =>
+            checker k' t1' t2' h1' (List.mem_cons_of_mem (k, t2) h2')
+          ) with
+        | .some ⟨restH⟩ => .some <| PLift.up (by
+          unfold FieldsWeakerThan at ⊢ restH
+          grind -- I love it.
+        )
+        | .none => .none
+      | .none => .none
+    | none => .none
+
+def objectSubtype (req1 opt1 req2 opt2 : List (String × JsonType))
+    (subtypeChecker : (k : String) → (t1 t2 : JsonType) →
+      (h : (k, t1) ∈ req1 ++ opt1) → (h' : (k, t2) ∈ req2 ++ opt2) → DecideSubtype t1 t2) :
+    DecideSubtype (.object req1 opt1) (.object req2 opt2) :=
+  match checkFieldsSubtype req1 req2 (fun k t1 t2 h1 h2 =>
+      subtypeChecker k t1 t2 (List.mem_append_left opt1 h1) (List.mem_append_left opt2 h2)
+    ),
+    checkFieldsSubtype (req1 ++ opt1) opt2 (fun k t1 t2 h1 h2 =>
+      subtypeChecker k t1 t2 h1 (List.mem_append_right req2 h2)
+    ) with
+  | .some (.up h1), .some (.up h2) => .isSubtype (
+    objectSubtypeProof req1 opt1 req2 opt2 h1 h2
+  )
+  | _, _ => .none
+
+
 /-- Check if t1 is a subtype of t2 (t1 <: t2) -/
 def subtype (t1 t2 : JsonType) : DecideSubtype t1 t2 :=
   match t1, t2 with
@@ -209,25 +252,14 @@ def subtype (t1 t2 : JsonType) : DecideSubtype t1 t2 :=
         | .strLit _, .string => .isSubtype (by unfold check; grind)
         | .numLit _, .number => .isSubtype (by unfold check; grind)
         | .boolLit _, .bool => .isSubtype (by unfold check; grind)
-
-        /-
         -- Objects: width and depth subtyping
         -- All fields in τ₂ (both required and optional) must exist in τ₁ with subtype
         -- Required fields in τ₂ must come from req1
         -- Optional fields in τ₂ can come from either req1 or opt1
         | .object req1 opt1, .object req2 opt2 =>
-            let allFields1 := (req1 ++ opt1).attach
-            -- All required fields in req2 must exist in req1 (required) with subtype
-            let reqCheck := req2.attach.all fun ⟨(name2, type2), _h1⟩ =>
-              req1.attach.any fun ⟨(name1, type1), _h2⟩ =>
-                name1 == name2 && subtype type1 type2
-            -- All optional fields in opt2 must exist in allFields1 with subtype
-            let optCheck := opt2.attach.all fun ⟨(name2, type2), _h1⟩ =>
-              allFields1.any fun ⟨(name1, type1), _h2⟩ =>
-                name1 == name2 && subtype type1 type2
-            reqCheck && optCheck
-        -/
-
+            objectSubtype req1 opt1 req2 opt2 (fun _k t t' _h1 _h2 =>
+              subtype t t'
+            )
         | _, _ => .none
 termination_by sizeOf t1 + sizeOf t2
 decreasing_by
@@ -247,6 +279,14 @@ decreasing_by
   · decreasing_trivial
   · decreasing_trivial
   · decreasing_trivial
+  · simp;
+    simp at _h1 _h2
+    rcases _h1 with _h1 | _h1 <;> rcases _h2 with _h2 | _h2 <;> {
+      replace _h2 := List.sizeOf_lt_of_mem _h2
+      replace _h1 := List.sizeOf_lt_of_mem _h1
+      simp at _h1 _h2
+      grind
+    }
   /-
   · decreasing_trivial
   · have : sizeOf req1 + sizeOf opt1 < sizeOf (object req1 opt1) := by simp
