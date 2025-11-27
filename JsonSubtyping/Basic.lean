@@ -317,7 +317,9 @@ decreasing_by
     grind
 
 /-- A JSON value that conforms to a specific JsonType schema -/
-abbrev TypedJson (t : JsonType) := Subtype (t.check · = true)
+structure TypedJson (t : JsonType) where
+  val : Json
+  property : t.check val = true := by native_decide
 
 namespace TypedJson
 
@@ -350,7 +352,7 @@ def numLit (n : Int) : TypedJson (.numLit n) := ⟨.num (Lean.JsonNumber.fromInt
 def boolLit (b : Bool) : TypedJson (.boolLit b) := ⟨.bool b, by simp [JsonType.check, Json.beq_refl]⟩
 
 -- Any type accepts anything
-instance : Coe Json (TypedJson .any) where
+instance : CoeTail Json (TypedJson .any) where
   coe v := ⟨v, by simp [JsonType.check]⟩
 
 end TypedJson

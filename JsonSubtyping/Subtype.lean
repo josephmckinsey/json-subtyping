@@ -287,28 +287,24 @@ decreasing_by
       simp at _h1 _h2
       grind
     }
-  /-
-  · decreasing_trivial
-  · have : sizeOf req1 + sizeOf opt1 < sizeOf (object req1 opt1) := by simp
-    have : sizeOf req2 + sizeOf opt2 < sizeOf (object req2 opt2) := by simp
-    have h1_size := List.sizeOf_lt_of_mem _h1
-    simp at h1_size
-    have h2_size := List.sizeOf_lt_of_mem _h2
-    simp at h2_size
-    omega
-  · have : sizeOf req1 + sizeOf opt1 < sizeOf (object req1 opt1) := by simp
-    have : sizeOf req2 + sizeOf opt2 < sizeOf (object req2 opt2) := by simp
-    have h1_size := List.sizeOf_lt_of_mem _h1
-    simp at h1_size
-    rw [List.mem_append] at _h2
-    rcases _h2 with h2 | h2 <;> {
-      have h2_size := List.sizeOf_lt_of_mem h2
-      simp at h2_size
-      omega
-    }
-  -/
+
+def subtypeToBool : DecideSubtype t1 t2 → Bool
+  | .isSubtype _ => true
+  | .none => false
+
+theorem toBool_correct (h : DecideSubtype t1 t2) :
+  subtypeToBool h → ∀j, t1.check j → t2.check j := by
+  rcases h
+  · simp [subtypeToBool]
+  simpa [subtypeToBool]
+
 
 -- Notation for subtyping
-scoped infix:50 " <: " => JsonType.subtype
+--scoped infix:50 " <: " => JsonType.subtype
 
 end JsonType
+
+def TypedJson.coe {t1 t2 : JsonType} (v1 : TypedJson t1)
+    (h : (JsonType.subtypeToBool (t1.subtype t2) = true) := by native_decide) : TypedJson t2 :=
+  match v1 with
+  | ⟨x, h'⟩ => ⟨x, JsonType.toBool_correct (t1.subtype t2) h x h'⟩
