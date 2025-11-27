@@ -2,4 +2,3 @@
 -- Import modules here that should be built as part of the library.
 import JsonSubtyping.Basic
 import JsonSubtyping.Subtype
-import JsonSubtyping.Soundness

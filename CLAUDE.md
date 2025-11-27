@@ -18,7 +18,7 @@ This project implements a TypeScript-like type system for JSON in Lean 4, enabli
 
 The goal is to represent JSON schemas as Lean types with:
 - Type checking: `JsonType.check (t : JsonType) (x : Json) : Bool`
-- Typed JSON values: `TypedJson (t : JsonType) := Subtype (t.check · = true)`
+- Typed JSON values: `TypedJson (t : JsonType)`
 
 ### Type System Features (from blueprint/src/plan.typ)
 
@@ -46,6 +46,7 @@ The subtyping relation follows standard structural subtyping:
 ### Architecture
 
 - `JsonSubtyping/Basic.lean` - Core type definitions, `JsonType.check`, and `TypedJson`
+- `JsonSubtyping/ObjectSubtype.lean` - ObjectSubtype lemmas
 - `JsonSubtyping/Subtype.lean` - Subtype checking implementation
 - `JsonSubtyping/JsonLemmas.lean` - Json infrastructure: `Json.beq`, sizeOf lemmas
 - `JsonSubtyping.lean` - Library root module
@@ -64,18 +65,10 @@ The subtyping relation follows standard structural subtyping:
 - ✅ `JsonType.subtype` - Decidable subtype checking with all rules from plan.typ
 - ✅ TypedJson constructors (null, literals, coercions)
 - ✅ Tests for type checking and subtyping
+- ✅ Subtype soundness theorem
+- ✅ Coercion implementation
 
 **Priority TODOs:**
-
-1. **Subtype soundness theorem** (CRITICAL for coercion)
-   - Need to prove: `t1.check x = true → t1.subtype t2 = true → t2.check x = true`
-   - This is the fundamental property that justifies coercing `TypedJson t1` to `TypedJson t2`
-   - Without this theorem, we cannot safely implement coercion between subtypes
-   - Will likely require induction on both the structure of types and the subtype derivation
-
-2. **Coercion implementation**
-   - Once soundness is proven, implement: `coerce : TypedJson t1 → (h : t1.subtype t2 = true) → TypedJson t2`
-   - This will allow compile-time type narrowing and widening
 
 3. **Normalization** (COMPLEX - may involve mutual induction)
    - Key lemma required: `(norm t).check x ↔ t.check x` (normalization preserves checking)
@@ -92,4 +85,4 @@ The subtyping relation follows standard structural subtyping:
 
 **Known challenges:**
 - Normalization will likely require mutual induction with subtyping, making termination proofs complex
-- Soundness proof will be substantial and may reveal edge cases in our subtype checking algorithm
+- Soundness proof will be substantial and may reveal edge cases in our subtype checking algorithm (it did)
