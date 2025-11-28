@@ -157,6 +157,40 @@ theorem check {req : List (String × JsonType)} (fields : ObjectFields req)
 
 end ObjectFields
 
+/-! ### Object Notation
+
+The syntax `obj{"name": value, "age": ageVal}` desugars to:
+```lean
+ObjectFields.cons "name" value (ObjectFields.cons "age" ageVal ObjectFields.nil)
+```
+
+This provides ergonomic construction of typed JSON objects.
+-/
+
+/-- Declare syntax category for object fields -/
+declare_syntax_cat objField
+
+/-- Syntax for object field literals: `"key": value` -/
+syntax str " : " term : objField
+
+/-- Syntax for object literals: `obj{"key1": value1, "key2": value2}` -/
+syntax "obj{" withoutPosition(objField,*,?) "}" : term
+
+macro_rules
+  | `(obj{ $fields,* }) => do
+    let rec expandObjLit (i : Nat) (skip : Bool) (result : Lean.TSyntax `term) : Lean.MacroM (Lean.TSyntax `term) := do
+      match i, skip with
+      | 0,   _     => pure result
+      | i+1, true  => expandObjLit i false result
+      | i+1, false =>
+          let field := fields.elemsAndSeps.get!Internal i
+          match field with
+          | `(objField| $name:str : $value:term) =>
+              expandObjLit i true (← ``(ObjectFields.cons $name $value $result))
+          | _ => Lean.Macro.throwError "Invalid object field syntax"
+    let size := fields.elemsAndSeps.size
+    expandObjLit size (size % 2 == 0) (← ``(ObjectFields.nil))
+
 /-- Construct an object from ObjectFields -/
 def mkObj {req : List (String × JsonType)} (fields : ObjectFields req)
     (noDups : req.Pairwise (fun a b => ¬compare a.1 b.1 = .eq) := by native_decide) :
