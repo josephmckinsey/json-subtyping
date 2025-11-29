@@ -47,13 +47,14 @@ The subtyping relation follows standard structural subtyping:
 
 - `JsonSubtyping/Basic.lean` - Core type definitions, `JsonType.check`, and `TypedJson`
 - `JsonSubtyping/ObjectSubtype.lean` - ObjectSubtype lemmas
-- `JsonSubtyping/Subtype.lean` - Subtype checking implementation
+- `JsonSubtyping/Subtype.lean` - Subtype checking implementation and coercion
+- `JsonSubtyping/Constructors.lean` - TypedJson constructors (arrays, tuples, objects) and `obj{...}` notation
 - `JsonSubtyping/JsonLemmas.lean` - Json infrastructure: `Json.beq`, sizeOf lemmas
 - `JsonSubtyping.lean` - Library root module
 - `Main.lean` - Executable entry point
 - `Tests/Check.lean` - Tests for `JsonType.check`
 - `Tests/Subtype.lean` - Tests for subtype checking
-- `Tests/TypedJson.lean` - Tests for TypedJson constructors
+- `Tests/TypedJson.lean` - Tests for TypedJson constructors and notation
 - `Tests/Examples.lean` - Example type definitions
 - `blueprint/src/plan.typ` - Detailed design specification with typing rules
 
@@ -63,26 +64,37 @@ The subtyping relation follows standard structural subtyping:
 - ✅ `JsonType.check` - Runtime type checking
 - ✅ `Json.beq_refl` - Reflexivity of JSON equality
 - ✅ `JsonType.subtype` - Decidable subtype checking with all rules from plan.typ
-- ✅ TypedJson constructors (null, literals, coercions)
-- ✅ Tests for type checking and subtyping
-- ✅ Subtype soundness theorem
-- ✅ Coercion implementation
+- ✅ Subtype soundness theorem and coercion implementation
+- ✅ TypedJson constructors:
+  - Primitives: `null`, `true`, `false`, string/number literals
+  - Arrays: `arr` (from Array), `arrFromList` (from List)
+  - Tuples: `prod` (2-element), `tuple3` (3-element)
+  - Objects: `ObjectFields` HList with `obj{...}` notation, `mkObj` with automatic duplicate checking
+- ✅ Tests for type checking, subtyping, and constructors
+
+**TypedJson Constructor Design:**
+
+The object construction system uses a heterogeneous list (HList) approach:
+- `ObjectFields` is an inductive type indexed by `List (String × JsonType)`
+- Field names and types are compile-time parameters (enabling `native_decide` for duplicate checking)
+- Field values are `TypedJson` carrying runtime proofs of type correctness
+- The `obj{"key": value, ...}` notation expands to `ObjectFields.cons` chains
+- `mkObj` converts `ObjectFields` to `TypedJson (.object ...)` with automatic duplicate detection via `native_decide`
+
+Key limitation: Field names must be compile-time string literals for duplicate checking to work automatically.
 
 **Priority TODOs:**
 
-3. **Normalization** (COMPLEX - may involve mutual induction)
+1. **Normalization** (COMPLEX - may involve mutual induction)
    - Key lemma required: `(norm t).check x ↔ t.check x` (normalization preserves checking)
    - DNF conversion for unions/intersections
    - Object field sorting and merging for intersections
    - Never elimination
    - Termination may be challenging due to mutual recursion between normalization and subtyping
-   - Consider deferring until after soundness proof for non-normalized subtyping
 
-4. **Type inference helpers**
+2. **Type inference helpers**
    - Field access with type information
-   - Object construction helpers
    - Type narrowing macros (TypeScript-style flow typing)
 
 **Known challenges:**
 - Normalization will likely require mutual induction with subtyping, making termination proofs complex
-- Soundness proof will be substantial and may reveal edge cases in our subtype checking algorithm (it did)
