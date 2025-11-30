@@ -335,13 +335,22 @@ def null : TypedJson .null := ⟨Json.null, by simp [JsonType.check, Json.isNull
 instance : Coe String (TypedJson .string) where
   coe s := ⟨.str s, by simp [JsonType.check]⟩
 
+instance : Coe Lean.JsonNumber (TypedJson .number) where
+  coe n := ⟨.num n, by simp [JsonType.check]⟩
+
 instance : Coe Int (TypedJson .number) where
   coe n := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
 
 instance : Coe Nat (TypedJson .number) where
   coe n := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
 
-instance : OfNat (TypedJson .number) n where
+instance : Coe Nat (TypedJson .number) where
+  coe n := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
+
+instance {n : Nat} : OfNat (TypedJson (.numLit n)) n where
+  ofNat := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
+
+instance {n : Nat} : OfNat (TypedJson .number) n where
   ofNat := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
 
 instance : Coe Bool (TypedJson .bool) where

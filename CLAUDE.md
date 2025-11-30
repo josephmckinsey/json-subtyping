@@ -109,8 +109,13 @@ The field access system provides type-safe property access for TypedJson values:
    - Never elimination
    - Termination may be challenging due to mutual recursion between normalization and subtyping
 
-2. **Type narrowing and optional types**
-   - Optional field access including for nullable fields
+2. **Additional accessor operations**
+   - Tuple destructuring (e.g., `toProd`, `toProd3` for tuples with type information)
+   - Array element access (indexing with bounds checking)
+   - Primitive value extraction (getting the underlying `Float`, `String`, `Bool` from typed values)
+   - Optional field access for nullable fields
+
+3. **Type narrowing**
    - Type narrowing macros (TypeScript-style flow typing based on discriminants)
 
 **Known challenges:**
