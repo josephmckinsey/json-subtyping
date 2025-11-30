@@ -373,4 +373,42 @@ instance (t : JsonType) : BEq (TypedJson t) where
 instance (t : JsonType) : ReflBEq (TypedJson t) where
   rfl {a} := Json.beq_refl a.val
 
+instance : Inhabited (TypedJson .any) where
+  default := (default : Json)
+
+instance : Inhabited (TypedJson .number) where
+  default := 0
+
+instance : Inhabited (TypedJson .string) where
+  default := (default : String)
+
+instance : Inhabited (TypedJson .null) where
+  default := .null
+
+instance : Inhabited (TypedJson .bool) where
+  default := (default : Bool)
+
+instance {t : JsonType} : Inhabited (TypedJson (.array t)) where
+  default := ⟨.arr #[], by simp [JsonType.check]⟩
+
+instance {t1 t2 : JsonType} [default1 : Inhabited (TypedJson t1)] [default2 : Inhabited (TypedJson t2)] : Inhabited (TypedJson (.tuple [t1, t2])) where
+  default := ⟨.arr #[default1.default.val, default2.default.val], by
+    simp [JsonType.check, tupleCheckRec]
+    exact ⟨default1.default.property, default2.default.property⟩
+  ⟩
+
+instance {s : String} : Inhabited (TypedJson (.strLit s)) where
+  default := ⟨.str s, by simp [JsonType.check, Json.beq_refl]⟩
+
+instance {n : Int} : Inhabited (TypedJson (.numLit n)) where
+  default := ⟨.num (Lean.JsonNumber.fromInt n), by simp [JsonType.check]⟩
+
+instance {b : Bool} : Inhabited (TypedJson (.boolLit b)) where
+  default := ⟨.bool b, by simp [JsonType.check, Json.beq_refl]⟩
+
+instance {t1 t2 : JsonType} [default1 : Inhabited (TypedJson t1)] : Inhabited (TypedJson (.union t1 t2)) where
+  default := ⟨default1.default.val, by
+    simpa [JsonType.check] using .inl (default1.default.property)
+  ⟩
+
 end TypedJson

@@ -120,4 +120,25 @@ def toProd3 {t1 t2 t3 : JsonType} (tj : TypedJson (.tuple [t1, t2, t3])) : (Type
     | .null | .bool _ | .num _ | .str _ | .obj _ => by
       simp [JsonType.check] at h
 
+/-! ## Array Extraction -/
+
+/-- Extract an `Array (TypedJson t)` from a `TypedJson (.array t)`.
+    This is the inverse of the `arr` constructor and enables using all standard
+    Lean array operations (indexing, head?, tail, map, filter, etc.). -/
+def toArray {elemType : JsonType} (arr : TypedJson (.array elemType)) :
+    Array (TypedJson elemType) :=
+  match arr with
+  | ⟨.arr xs, property⟩ =>
+      xs.attach.map fun ⟨x, mem⟩ =>
+        ⟨x, by
+          simp only [JsonType.check] at property
+          rw [Array.all_eq_true'] at property
+          exact property x mem
+        ⟩
+  | ⟨.null, property⟩ => by simp [JsonType.check] at property
+  | ⟨.bool _, property⟩ => by simp [JsonType.check] at property
+  | ⟨.num _, property⟩ => by simp [JsonType.check] at property
+  | ⟨.str _, property⟩ => by simp [JsonType.check] at property
+  | ⟨.obj _, property⟩ => by simp [JsonType.check] at property
+
 end TypedJson
