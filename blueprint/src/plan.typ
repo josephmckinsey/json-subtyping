@@ -437,7 +437,26 @@ $
   prooftree(rule(v : {f : tau}, v.f : tau))
 $
 
-== Narrrowing
+=== More Details
+
+Suppose that we have a JSON type $tau$ and consider a key $k$. We will first consider the case when we are looking for a field we know exists.
+
+Suppose that $sigma = tau[k]$. We can compute $sigma$ as following:
+- for objects, we can lookup $sigma$ directly in the required and optional fields.
+If a field is both required and optional, then we take the intersection of those types.
+- for unions, we need the key to exist in both sides, and then we can take the union of both sides.
+- for intersections, we take the type from both sides, and then intersect them. If they only exist on one side, then that's fine.
+
+These are true, since if $j : { k : t, ... }$, then $j[k] : t$.
+If $j : t_1 | t_2$, then $j : t_1$ or $j : t_2$, so by induction $j[k] : t_1[k]$ or $j[k] : t_1[k]$. If $j : t_1 \& t_2$, then $j : t_1$ and $j : t_2$.
+If $k in t_1$ and $k in t_2$, $j[k] in t_1[k]$ and $j[k] in t_2[k]$ respectively.
+
+So the important theorem of $k in tau$ is that $j[k] : tau[k]$. Now $j[k]$
+contains two facts. One, $j[k]? = "some" v$, and two $v : tau[k]$.
+
+For optional access, then we look up in opt, but otherwise the process is identical.
+
+== Narrowing
 
 In typescript, one central part of typing is how to discriminate unions. Unlike many other languages with
 similar features, tags are relatively easy to apply. Typescript calls this #link("https://www.typescriptlang.org/docs/handbook/2/narrowing.html", [narrowing]).

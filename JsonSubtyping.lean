@@ -3,3 +3,4 @@
 import JsonSubtyping.Basic
 import JsonSubtyping.Subtype
 import JsonSubtyping.Constructors
+import JsonSubtyping.FieldAccess

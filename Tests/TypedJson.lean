@@ -70,3 +70,39 @@ def testObjFieldsRuntime (s : String) (n : Nat) : ObjectFields [("name", .strLit
 
 def testMkObj (s : String) (n : Nat) : TypedJson (.object [("name", .string), ("age", .number)] []) :=
   mkObj obj{"name": (s : TypedJson .string), "age": (n : TypedJson .number)}
+
+-- Field access tests
+section FieldAccess
+
+-- Test hasKey and getKey?
+def person : JsonType := .object [("name", .string), ("age", .number)] []
+
+/-- info: true -/
+#guard_msgs in
+#eval ("name" ∈ person)
+
+/-- info: some (JsonType.string) -/
+#guard_msgs in
+#eval JsonType.getKey? person "name"
+
+/-- info: none -/
+#guard_msgs in
+#eval JsonType.getKey? person "unknown"
+
+def testPerson : TypedJson person :=
+  mkObj obj{"name": ("Alice" : TypedJson .string), "age": (30 : TypedJson .number)}
+
+-- Test field access using .get notation
+-- These compile successfully, demonstrating type-safe field access
+example : TypedJson .string := testPerson.get "name"
+example : TypedJson .number := testPerson.get "age"
+
+-- Test that coercion works after field access
+example : TypedJson .any := (testPerson.get "name").coe
+
+-- Test complex toString evaluation
+/-- info: TypedJson JsonType.string "Alice" -/
+#guard_msgs in
+#eval testPerson.get "name"
+
+end FieldAccess

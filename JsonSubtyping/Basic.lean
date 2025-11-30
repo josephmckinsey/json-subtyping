@@ -321,6 +321,9 @@ structure TypedJson (t : JsonType) where
   val : Json
   property : t.check val = true := by native_decide
 
+instance : ToString (TypedJson t) where
+  toString tj := (s!"TypedJson {reprPrec t 10} {toString tj.val}")
+
 namespace TypedJson
 
 -- Basic constructors
