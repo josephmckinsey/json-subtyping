@@ -50,12 +50,14 @@ The subtyping relation follows standard structural subtyping:
 - `JsonSubtyping/Subtype.lean` - Subtype checking implementation and coercion
 - `JsonSubtyping/Constructors.lean` - TypedJson constructors (arrays, tuples, objects) and `obj{...}` notation
 - `JsonSubtyping/FieldAccess.lean` - Type-safe field access with `getKey`, `getKey?`, and `TypedJson.get`
+- `JsonSubtyping/JsonToLean.lean` - Value extraction: primitives (`toString`, `toFloat`, `toBool`), tuple destructuring (`toProd`, `toProd3`), and array extraction (`toArray`)
 - `JsonSubtyping/JsonLemmas.lean` - Json infrastructure: `Json.beq`, sizeOf lemmas
 - `JsonSubtyping.lean` - Library root module
 - `Main.lean` - Executable entry point
 - `Tests/Check.lean` - Tests for `JsonType.check`
 - `Tests/Subtype.lean` - Tests for subtype checking
 - `Tests/TypedJson.lean` - Tests for TypedJson constructors and notation
+- `Tests/JsonToLean.lean` - Tests for value extraction and tuple destructuring
 - `Tests/Examples.lean` - Example type definitions
 - `blueprint/src/plan.typ` - Detailed design specification with typing rules
 
@@ -77,7 +79,13 @@ The subtyping relation follows standard structural subtyping:
   - `TypedJson.get` - Type-safe field access with compile-time membership checking
   - Membership notation (`key ∈ t`) with decidability
   - Correctness theorem: `getKey?_correctness` proves extracted types are sound
-- ✅ Tests for type checking, subtyping, and constructors
+- ✅ Value extraction operations:
+  - Primitive extraction: `toString`, `toJsonNumber`, `toFloat`, `toBool`
+  - Tuple destructuring: `toProd` (2-element), `toProd3` (3-element)
+  - Array extraction: `toArray` - converts `TypedJson (.array t)` to `Array (TypedJson t)`
+  - Helper theorems: `tupleLength`, `tupleCheckAux`, `tupleCheck` for extracting proofs from `tupleCheckRec`
+- ✅ Inhabited instances for TypedJson (primitives, arrays, tuples, literals, unions)
+- ✅ Tests for type checking, subtyping, constructors, and value extraction
 
 **TypedJson Constructor Design:**
 
@@ -100,6 +108,14 @@ The field access system provides type-safe property access for TypedJson values:
 - For intersections: key exists in ANY branch, field type is intersection if in both
 - `getKey?_correctness` proves that if `getKey? key = some v`, then accessing that field returns a value that checks against `v`
 
+**Array Extraction Design:**
+
+The array extraction system provides seamless integration with Lean's standard array operations:
+- `toArray` converts `TypedJson (.array t)` to `Array (TypedJson t)` - the inverse of the `arr` constructor
+- Uses `Array.attach` and `Array.all_eq_true'` to extract element type proofs from the check property
+- Once extracted, users get all standard Lean array operations for free: indexing (`[i]`, `[i]?`, `[i]!`), iteration (`for-in`), mapping, filtering, etc.
+- Design philosophy: Leverage Lean's existing infrastructure rather than reimplementing custom operations
+
 **Priority TODOs:**
 
 1. **Normalization** (COMPLEX - may involve mutual induction)
@@ -110,10 +126,8 @@ The field access system provides type-safe property access for TypedJson values:
    - Termination may be challenging due to mutual recursion between normalization and subtyping
 
 2. **Additional accessor operations**
-   - Tuple destructuring (e.g., `toProd`, `toProd3` for tuples with type information)
-   - Array element access (indexing with bounds checking)
-   - Primitive value extraction (getting the underlying `Float`, `String`, `Bool` from typed values)
    - Optional field access for nullable fields
+   - Tuple destructuring for larger tuples (4+elements)
 
 3. **Type narrowing**
    - Type narrowing macros (TypeScript-style flow typing based on discriminants)
