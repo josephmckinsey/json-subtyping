@@ -367,4 +367,10 @@ def boolLit (b : Bool) : TypedJson (.boolLit b) := ⟨.bool b, by simp [JsonType
 instance : CoeTail Json (TypedJson .any) where
   coe v := ⟨v, by simp [JsonType.check]⟩
 
+instance (t : JsonType) : BEq (TypedJson t) where
+  beq j1 j2 := j1.val.beq j2.val
+
+instance (t : JsonType) : ReflBEq (TypedJson t) where
+  rfl {a} := Json.beq_refl a.val
+
 end TypedJson

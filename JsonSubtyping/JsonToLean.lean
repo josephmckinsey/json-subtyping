@@ -48,4 +48,76 @@ def toBool : TypedJson .bool → Bool
 theorem toBool_eq {tj : TypedJson .bool} : tj = tj.toBool := by
   simp [toBool, <-JsonType.toBool_eq]
 
+/-! ## Tuple Destructuring -/
+
+theorem tupleLength (ts : List JsonType) (xs : List Json)
+    (h : tupleCheckRec ts (fun t _h => t.check) xs) :
+    xs.length = ts.length := by
+  induction xs generalizing ts with
+  | nil => simp [tupleCheckRec] at h; simp [h]
+  | cons x xs ih =>
+    unfold tupleCheckRec at h
+    cases ts with
+    | nil => simp at h
+    | cons t ts =>
+      simp at h
+      replace ih := ih ts h.2
+      grind
+
+theorem tupleCheckAux (ts : List JsonType) (xs : List Json)
+    (h : tupleCheckRec ts (fun t _h => t.check) xs) (i : Nat) (mem : i < ts.length)
+    (mem' : i < xs.length) :
+    ts[i].check xs[i] := by
+  induction xs generalizing ts i with
+  | nil => simp at mem'
+  | cons x xs ih =>
+    unfold tupleCheckRec at h
+    cases ts with
+    | nil => simp at h
+    | cons t ts =>
+      simp at h
+      rw [List.getElem_cons, List.getElem_cons]
+      cases i with
+      | zero => simpa using h.1
+      | succ i => simpa using (
+        ih ts h.2 i (by simp at mem; omega) (by simp at mem'; omega)
+      )
+
+def tupleCheck (ts : List JsonType) (xs : List Json)
+    (h : tupleCheckRec ts (fun t _h => t.check) xs) (i : Nat) (mem : i < ts.length) :=
+  tupleCheckAux ts xs h i mem (tupleLength ts xs h ▸ mem)
+
+/-- Extract components from a 2-element tuple -/
+def toProd {t1 t2 : JsonType} (tj : TypedJson (.tuple [t1, t2])) : (TypedJson t1 × TypedJson t2) :=
+  match tj with
+  | ⟨val, h⟩ =>
+    match val with
+    | .arr arr => by
+      simp only [JsonType.check] at h
+      have arrSize : arr.size = 2 := by
+        rw [Array.size_eq_length_toList, tupleLength [t1, t2] _ h]
+        simp
+      refine ⟨⟨arr[0], ?_⟩, ⟨arr[1], ?_⟩⟩
+      · exact tupleCheck [t1, t2] arr.toList h 0 (by simp)
+      exact tupleCheck [t1, t2] arr.toList h 1 (by simp)
+    | .null | .bool _ | .num _ | .str _ | .obj _ => by
+      simp [JsonType.check] at h
+
+/-- Extract components from a 3-element tuple -/
+def toProd3 {t1 t2 t3 : JsonType} (tj : TypedJson (.tuple [t1, t2, t3])) : (TypedJson t1 × TypedJson t2 × TypedJson t3) :=
+  match tj with
+  | ⟨val, h⟩ =>
+    match val with
+    | .arr arr => by
+      simp only [JsonType.check] at h
+      have arrSize : arr.size = 3 := by
+        rw [Array.size_eq_length_toList, tupleLength [t1, t2, t3] _ h]
+        simp
+      refine ⟨⟨arr[0], ?_⟩, ⟨arr[1], ?_⟩, ⟨arr[2], ?_⟩⟩
+      · exact tupleCheck [t1, t2, t3] arr.toList h 0 (by simp)
+      · exact tupleCheck [t1, t2, t3] arr.toList h 1 (by simp)
+      exact tupleCheck [t1, t2, t3] arr.toList h 2 (by simp)
+    | .null | .bool _ | .num _ | .str _ | .obj _ => by
+      simp [JsonType.check] at h
+
 end TypedJson
