@@ -49,6 +49,7 @@ The subtyping relation follows standard structural subtyping:
 - `JsonSubtyping/ObjectSubtype.lean` - ObjectSubtype lemmas
 - `JsonSubtyping/Subtype.lean` - Subtype checking implementation and coercion
 - `JsonSubtyping/Constructors.lean` - TypedJson constructors (arrays, tuples, objects) and `obj{...}` notation
+- `JsonSubtyping/FieldAccess.lean` - Type-safe field access with `getKey`, `getKey?`, and `TypedJson.get`
 - `JsonSubtyping/JsonLemmas.lean` - Json infrastructure: `Json.beq`, sizeOf lemmas
 - `JsonSubtyping.lean` - Library root module
 - `Main.lean` - Executable entry point
@@ -70,6 +71,12 @@ The subtyping relation follows standard structural subtyping:
   - Arrays: `arr` (from Array), `arrFromList` (from List)
   - Tuples: `prod` (2-element), `tuple3` (3-element)
   - Objects: `ObjectFields` HList with `obj{...}` notation, `mkObj` with automatic duplicate checking
+- ✅ Field access with type information:
+  - `JsonType.getKey?` - Optional field type extraction
+  - `JsonType.getKey` - Extract field type with proof of membership
+  - `TypedJson.get` - Type-safe field access with compile-time membership checking
+  - Membership notation (`key ∈ t`) with decidability
+  - Correctness theorem: `getKey?_correctness` proves extracted types are sound
 - ✅ Tests for type checking, subtyping, and constructors
 
 **TypedJson Constructor Design:**
@@ -83,6 +90,16 @@ The object construction system uses a heterogeneous list (HList) approach:
 
 Key limitation: Field names must be compile-time string literals for duplicate checking to work automatically.
 
+**Field Access Design:**
+
+The field access system provides type-safe property access for TypedJson values:
+- `getKey?` computes the type of a field if it exists (returns `Option JsonType`)
+- `getKey` extracts the field type given a proof of membership
+- `TypedJson.get` accesses fields with compile-time membership checking via `native_decide`
+- For unions: key must exist in ALL branches, field type is the union of branch types
+- For intersections: key exists in ANY branch, field type is intersection if in both
+- `getKey?_correctness` proves that if `getKey? key = some v`, then accessing that field returns a value that checks against `v`
+
 **Priority TODOs:**
 
 1. **Normalization** (COMPLEX - may involve mutual induction)
@@ -92,9 +109,9 @@ Key limitation: Field names must be compile-time string literals for duplicate c
    - Never elimination
    - Termination may be challenging due to mutual recursion between normalization and subtyping
 
-2. **Type inference helpers**
-   - Field access with type information
-   - Type narrowing macros (TypeScript-style flow typing)
+2. **Type narrowing and optional types**
+   - Optional field access including for nullable fields
+   - Type narrowing macros (TypeScript-style flow typing based on discriminants)
 
 **Known challenges:**
 - Normalization will likely require mutual induction with subtyping, making termination proofs complex
