@@ -1,4 +1,5 @@
 import JsonSubtyping.UnionEliminator
+import JsonSubtyping.JsonToLean
 
 open Lean (Json)
 

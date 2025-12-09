@@ -30,9 +30,9 @@ The goal is to represent JSON schemas as Lean types with:
 **Key algorithms to implement:**
 1. **Type checking** - Verify a JSON value conforms to a type ✅
 2. **Subtype checking** - Decidable `τ₁ <: τ₂` relation for compile-time coercion ✅
-3. **Subtype soundness** - Prove that subtyping preserves checking (see below)
-4. **Normalization** - DNF conversion, object field merging, never elimination
-5. **Type narrowing** - TypeScript-style flow typing based on discriminants
+3. **Subtype soundness** - Prove that subtyping preserves checking ✅
+4. **Type narrowing** - TypeScript-style flow typing based on discriminants ✅
+5. **Normalization** - DNF conversion, object field merging, never elimination
 
 ### Subtyping Rules
 
@@ -51,6 +51,7 @@ The subtyping relation follows standard structural subtyping:
 - `JsonSubtyping/Constructors.lean` - TypedJson constructors (arrays, tuples, objects) and `obj{...}` notation
 - `JsonSubtyping/FieldAccess.lean` - Type-safe field access with `getKey`, `getKey?`, and `TypedJson.get`
 - `JsonSubtyping/JsonToLean.lean` - Value extraction: primitives (`toString`, `toFloat`, `toBool`), tuple destructuring (`toProd`, `toProd3`), and array extraction (`toArray`)
+- `JsonSubtyping/UnionEliminator.lean` - Union elimination and type narrowing operations (`narrowKeyStr`, `narrowNotKeyStr`, `filterUnion`)
 - `JsonSubtyping/JsonLemmas.lean` - Json infrastructure: `Json.beq`, sizeOf lemmas
 - `JsonSubtyping.lean` - Library root module
 - `Main.lean` - Executable entry point
@@ -58,6 +59,7 @@ The subtyping relation follows standard structural subtyping:
 - `Tests/Subtype.lean` - Tests for subtype checking
 - `Tests/TypedJson.lean` - Tests for TypedJson constructors and notation
 - `Tests/JsonToLean.lean` - Tests for value extraction and tuple destructuring
+- `Tests/UnionEliminator.lean` - Tests for union elimination and type narrowing
 - `Tests/Examples.lean` - Example type definitions
 - `blueprint/src/plan.typ` - Detailed design specification with typing rules
 
@@ -86,6 +88,14 @@ The subtyping relation follows standard structural subtyping:
   - Helper theorems: `tupleLength`, `tupleCheckAux`, `tupleCheck` for extracting proofs from `tupleCheckRec`
 - ✅ Inhabited instances for TypedJson (primitives, arrays, tuples, literals, unions)
 - ✅ Tests for type checking, subtyping, constructors, and value extraction
+- ✅ Union elimination and type narrowing:
+  - `TypedJson.inl`, `TypedJson.inr` - Inject values into union types
+  - `TypedJson.unionElim`, `TypedJson.unionSplit` - Dependent and non-dependent elimination
+  - `JsonType.filterUnion` - Filter union branches by predicate
+  - `TypedJson.narrowKeyStr` - Narrow based on field matching a string value
+  - `TypedJson.narrowNotKeyStr` - Narrow based on field not matching a string value
+  - Correctness theorems: `narrowMatch_correctness`, `narrowMismatch_correctness`
+  - Supports TypeScript-style discriminated union narrowing
 
 **TypedJson Constructor Design:**
 
@@ -116,6 +126,16 @@ The array extraction system provides seamless integration with Lean's standard a
 - Once extracted, users get all standard Lean array operations for free: indexing (`[i]`, `[i]?`, `[i]!`), iteration (`for-in`), mapping, filtering, etc.
 - Design philosophy: Leverage Lean's existing infrastructure rather than reimplementing custom operations
 
+**Type Narrowing Design:**
+
+The type narrowing system enables TypeScript-style discriminated union narrowing:
+- `JsonType.filterUnion` filters union branches based on a boolean predicate
+- `filterUnion_correctness` proves that filtering preserves type checking when the predicate holds for all matching branches
+- `narrowKeyStr` and `narrowNotKeyStr` provide user-facing API for narrowing based on discriminant fields
+- Narrowing returns a filtered union type; users explicitly coerce (`.coe`) to the target type via subtyping
+- Pattern: `match h : tj.val.getObjVal? "key" with | .ok "value" => (tj.narrowKeyStr "key" "value" h).coe`
+- Design philosophy: Keep coercions explicit for now; auto-coercion can be added later via instances
+
 **Priority TODOs:**
 
 1. **Normalization** (COMPLEX - may involve mutual induction)
@@ -129,8 +149,10 @@ The array extraction system provides seamless integration with Lean's standard a
    - Optional field access for nullable fields
    - Tuple destructuring for larger tuples (4+elements)
 
-3. **Type narrowing**
-   - Type narrowing macros (TypeScript-style flow typing based on discriminants)
+3. **Enhanced type narrowing**
+   - Additional narrowing predicates (number ranges, boolean values, null checks)
+   - Match macros for more ergonomic discriminated union handling
+   - Auto-coercion instances to eliminate explicit `.coe` calls
 
 **Known challenges:**
 - Normalization will likely require mutual induction with subtyping, making termination proofs complex

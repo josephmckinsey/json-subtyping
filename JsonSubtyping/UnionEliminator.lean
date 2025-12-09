@@ -1,6 +1,4 @@
-import JsonSubtyping.Basic
 import JsonSubtyping.Subtype
-import JsonSubtyping.JsonToLean
 import JsonSubtyping.FieldAccess
 
 open Lean (Json)
@@ -213,4 +211,3 @@ def TypedJson.narrowNotKeyStr {t : JsonType} (tj : TypedJson t) (key : String) (
     (h : tj.val.getObjVal? key ≠ .ok str) :
     TypedJson (t.filterUnion (·.canMismatchPropertyStr key str)) :=
   ⟨tj.val, JsonType.narrowMismatch_correctness t key str tj.val h tj.property⟩
-
