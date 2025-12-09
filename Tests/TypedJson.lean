@@ -90,7 +90,7 @@ def person : JsonType := .object [("name", .string), ("age", .number)] []
 #eval JsonType.getKey? person "unknown"
 
 def testPerson : TypedJson person :=
-  mkObj obj{"name": ("Alice" : TypedJson .string), "age": (30 : TypedJson .number)}
+  mkObj obj{"name": "Alice", "age": 30}
 
 -- Test field access using .get notation
 -- These compile successfully, demonstrating type-safe field access

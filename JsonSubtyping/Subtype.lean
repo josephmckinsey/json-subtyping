@@ -5,21 +5,21 @@ import JsonSubtyping.ObjectSubtype
 open Lean (Json)
 
 /-- If Json.beq returns true for a value and a string constructor, the value must be a string -/
-@[grind →]
+@[grind .]
 theorem Json.beq_str_constructor (x : Json) (s : String) :
-    Json.beq x (.str s) = true → ∃ s', x = .str s' := by
+    Json.beq x (.str s) = true ↔ x = .str s := by
   cases x <;> simp [Json.beq]
 
 /-- If Json.beq returns true for a value and a number constructor, the value must be a number -/
-@[grind →]
+@[grind .]
 theorem Json.beq_num_constructor (x : Json) (n : Lean.JsonNumber) :
-    Json.beq x (.num n) = true → ∃ n', x = .num n' := by
+    Json.beq x (.num n) = true ↔ x = .num n := by
   cases x <;> simp [Json.beq]
 
 /-- If Json.beq returns true for a value and a bool constructor, the value must be a bool -/
-@[grind →]
+@[grind .]
 theorem Json.beq_bool_constructor (x : Json) (b : Bool) :
-    Json.beq x (.bool b) = true → ∃ b', x = .bool b' := by
+    Json.beq x (.bool b) = true ↔ x = .bool b := by
   cases x <;> simp [Json.beq]
 
 /-- If two JsonTypes are equal via BEq, their check functions agree -/
@@ -288,23 +288,22 @@ decreasing_by
       grind
     }
 
-def subtypeToBool : DecideSubtype t1 t2 → Bool
-  | .isSubtype _ => true
-  | .none => false
-
-theorem toBool_correct (h : DecideSubtype t1 t2) :
-  subtypeToBool h → ∀j, t1.check j → t2.check j := by
-  rcases h
-  · simp [subtypeToBool]
-  simpa [subtypeToBool]
-
-
 -- Notation for subtyping
 --scoped infix:50 " <: " => JsonType.subtype
 
 end JsonType
 
+def DecideSubtype.subtypeToBool : DecideSubtype t1 t2 → Bool
+  | .isSubtype _ => true
+  | .none => false
+
+theorem DecideSubtype.toBool_correct (h : DecideSubtype t1 t2) :
+  subtypeToBool h → ∀j, t1.check j → t2.check j := by
+  rcases h
+  · simp [subtypeToBool]
+  simpa [subtypeToBool]
+
 def TypedJson.coe {t1 t2 : JsonType} (v1 : TypedJson t1)
-    (h : (JsonType.subtypeToBool (t1.subtype t2) = true) := by native_decide) : TypedJson t2 :=
+    (h : ((t1.subtype t2).subtypeToBool = true) := by native_decide) : TypedJson t2 :=
   match v1 with
-  | ⟨x, h'⟩ => ⟨x, JsonType.toBool_correct (t1.subtype t2) h x h'⟩
+  | ⟨x, h'⟩ => ⟨x, DecideSubtype.toBool_correct (t1.subtype t2) h x h'⟩
